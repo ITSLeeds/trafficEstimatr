@@ -101,11 +101,12 @@ This is what `dodgr_contract_graph` does.
 
 ```{r dodgr-centrality}
 rnet_contracted = dodgr_contract_graph(rnet_dodgr)
-v <- dodgr_vertices (rnet_contracted)
+v <- dodgr_vertices (rnet_contracted) # 500 vertices
 fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
-rnet_f <- merge_directed_flows (rnet_f) %>% dodgr_to_sf () # slowest part
+rnet_directed <- merge_directed_flows (rnet_f)
+rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 tm_shape(rnet_f) +
   tm_lines(lwd = "flow", scale = 9) +
@@ -131,5 +132,51 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 ```
 
+The fit can be expected to be higher when using the uncontracted graph, as shown below:
 
+```{r uncontract}
+# rnet = dodgr::dodgr_uncontract_graph(graph = rnet_directed) # fails with:
+# Error in dodgr::dodgr_uncontract_graph(graph = rnet_directed) : 
+#   Unable to uncontract this graph because the rows have been changed
+```
+
+```{r uncontracted, eval=FALSE}
+# currently fails
+v <- dodgr_vertices (rnet_dodgr) %>% 
+  sample_n(100)
+fmat <- array (1, dim = rep (nrow (v), 2))
+rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
+                                 flows = fmat)
+rnet_directed <- merge_directed_flows (rnet_f)
+rnet_f = dodgr_to_sf(rnet_directed)
+summary(rnet_f$flow)
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_scale_bar()
+
+```
+
+## With stplanr
+
+```{r stplanr}
+library(stplanr)
+rnet = SpatialLinesNetwork(roads_key)
+rnet@sl$flow = igraph::edge_betweenness(rnet@g)
+summary(rnet@sl$flow)
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9)
+traffic_estimates = aggregate(rnet@sl["flow"], traffic_data_buffer, max) 
+traffic_data_sf$pcu_estimated = traffic_estimates$flow
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
+```
 

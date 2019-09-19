@@ -94,11 +94,12 @@ irrespective of how many points intervene these junctions. This is what
 
 ``` r
 rnet_contracted = dodgr_contract_graph(rnet_dodgr)
-v <- dodgr_vertices (rnet_contracted)
+v <- dodgr_vertices (rnet_contracted) # 500 vertices
 fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
-rnet_f <- merge_directed_flows (rnet_f) %>% dodgr_to_sf () # slowest part
+rnet_directed <- merge_directed_flows (rnet_f)
+rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #>       2     904    2726    6240    7730   60240
@@ -147,4 +148,75 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 #> [1] 0.08865354
+```
+
+The fit can be expected to be higher when using the uncontracted graph,
+as shown
+below:
+
+``` r
+# rnet = dodgr::dodgr_uncontract_graph(graph = rnet_directed) # fails with:
+# Error in dodgr::dodgr_uncontract_graph(graph = rnet_directed) : 
+#   Unable to uncontract this graph because the rows have been changed
+```
+
+``` r
+# currently fails
+v <- dodgr_vertices (rnet_dodgr) %>% 
+  sample_n(100)
+fmat <- array (1, dim = rep (nrow (v), 2))
+rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
+                                 flows = fmat)
+rnet_directed <- merge_directed_flows (rnet_f)
+rnet_f = dodgr_to_sf(rnet_directed)
+summary(rnet_f$flow)
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_scale_bar()
+```
+
+## With stplanr
+
+``` r
+library(stplanr)
+rnet = SpatialLinesNetwork(roads_key)
+rnet@sl$flow = igraph::edge_betweenness(rnet@g)
+summary(rnet@sl$flow)
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>       0    2488   11521   28041   35293  250933
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9)
+#> Legend for line widths not available in view mode.
+```
+
+![](README_files/figure-gfm/stplanr-1.png)<!-- -->
+
+``` r
+traffic_estimates = aggregate(rnet@sl["flow"], traffic_data_buffer, max) 
+#> although coordinates are longitude/latitude, st_intersects assumes that they are planar
+traffic_data_sf$pcu_estimated = traffic_estimates$flow
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+#> Legend for symbol sizes not available in view mode.
+#> Legend for line widths not available in view mode.
+```
+
+![](README_files/figure-gfm/stplanr-2.png)<!-- -->
+
+``` r
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+```
+
+![](README_files/figure-gfm/stplanr-3.png)<!-- -->
+
+``` r
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
+#> [1] 0.1459449
 ```
