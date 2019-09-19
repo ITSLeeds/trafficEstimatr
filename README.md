@@ -194,6 +194,7 @@ tm_shape(rnet@sl) +
 ![](README_files/figure-gfm/stplanr-1.png)<!-- -->
 
 ``` r
+traffic_data_buffer = stplanr::geo_projected(traffic_data_sf, st_buffer, dist = 100)
 traffic_estimates = aggregate(rnet@sl["flow"], traffic_data_buffer, max) 
 #> although coordinates are longitude/latitude, st_intersects assumes that they are planar
 traffic_data_sf$pcu_estimated = traffic_estimates$flow
@@ -218,5 +219,5 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.1459449
+#> [1] 0.1529621
 ```

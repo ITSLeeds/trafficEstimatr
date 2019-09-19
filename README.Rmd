@@ -167,6 +167,7 @@ rnet@sl$flow = igraph::edge_betweenness(rnet@g)
 summary(rnet@sl$flow)
 tm_shape(rnet@sl) +
   tm_lines(lwd = "flow", scale = 9)
+traffic_data_buffer = stplanr::geo_projected(traffic_data_sf, st_buffer, dist = 100)
 traffic_estimates = aggregate(rnet@sl["flow"], traffic_data_buffer, max) 
 traffic_data_sf$pcu_estimated = traffic_estimates$flow
 tm_shape(rnet@sl) +
