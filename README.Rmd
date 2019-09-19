@@ -51,7 +51,8 @@ dai = di %>%
   ungroup()
 dai %>% arrange(desc(n)) %>% slice(1:9)
 dasf = sf::st_as_sf(dai, coords = c("lon", "lat"), crs = 4326)
-dasf_iow = dasf[pct::pct_regions %>% filter(region_name == "isle-of-wight"), ]
+iow_boundary = pct::pct_regions %>% filter(region_name == "isle-of-wight")
+dasf_iow = dasf[iow_boundary, ]
 tm_shape(dasf_iow) + tm_dots(size = "pcu")
 saveRDS(dasf_iow, "dasf_iow.Rds")
 # aim: try to estimate PCU values across IoW, if it works, try for all of UK (big data)
@@ -61,5 +62,60 @@ saveRDS(dasf_iow, "dasf_iow.Rds")
 dasf_iow = readRDS("dasf_iow.Rds")
 tm_shape(dasf_iow) + tm_dots(size = "pcu")
 ```
+
+```{r, eval=FALSE}
+geofabric::get_geofabric(continent = "europe", country = "great-britain", region = "england")
+roads_uk = sf::read_sf(file.path(tempdir(), "gis_osm_roads_free_1.shp"))
+saveRDS(roads_uk, "roads_uk.Rds")
+piggyback::pb_upload("roads_uk.Rds")
+roads_iow = roads_uk[iow_boundary, ]
+saveRDS(roads_iow, "roads_iow.Rds")
+piggyback::pb_upload("roads_iow.Rds")
+nrow(roads_iow)
+mapview::mapview(roads_iow)
+key_roads_text = "primary|secondary|tertiary|cycleway|trunk"
+roads_key = roads_iow[grepl(pattern = key_roads_text, x = roads_iow$fclass), ]
+saveRDS(roads_key, "roads_key.Rds")
+mapview::mapview(roads_key)
+```
+
+
+```{r}
+library(dodgr)
+roads_key = readRDS("roads_key.Rds")
+rnet_dodgr = weight_streetnet(x = roads_key, type_col = "fclass")
+```
+
+### dodgr centrality
+
+`dodgr` can calculate network centrality by aggregating unit flows from all
+points to all other points. Note that centrality measured above (via `igraph`)
+is taken between all pairs of all actual points within the Open Street Map data
+base, but that these points themselves are sampled at arbitrary (spatial)
+intensities, and in particular generally have higher sampling densities towards
+the centres of dense urban regions. The resultant measure of centrality is
+accordingly biased by such effects. Removing these effects requires reducing
+the network down to junctions only, and calculating centrality between all
+junction points, irrespective of how many points intervene these junctions.
+This is what `dodgr_contract_graph` does.
+
+```{r dodgr-centrality}
+rnet_contracted = dodgr_contract_graph(rnet_dodgr)
+v <- dodgr_vertices (rnet_contracted)
+fmat <- array (1, dim = rep (nrow (v), 2))
+rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
+                                 flows = fmat)
+rnet_f <- merge_directed_flows (rnet_f) %>% dodgr_to_sf () # slowest part
+plot (rnet_f$geometry, lwd = 10 * rnet_f$flow / max (rnet_f$flow))
+plot(dasf_iow, add = T)
+```
+
+Goodness of fit.
+
+```{r}
+st_join(dasf_iow, rnet_f["flow"], op = sf::st_nearest_points)
+sf::st_nearest_points(rnet_f, dasf_iow)
+```
+
 
 
