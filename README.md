@@ -7,8 +7,13 @@
 
 <!-- badges: end -->
 
-The goal of trafficEstimatr is to
-…
+The goal of trafficEstimatr is to demonstrate methods for estimating
+traffic volumes down to the route segment level using open access
+datasets.
+
+The following code chunk downloads and pre-processes OpenStreetMap data
+that we will use for this
+purpose.
 
 ``` r
 u = "http://data.dft.gov.uk/road-traffic/dft_traffic_counts_raw_counts.zip"
@@ -44,6 +49,7 @@ iow_boundary = pct::pct_regions %>% filter(region_name == "isle-of-wight")
 traffic_data_sf = dasf[iow_boundary, ]
 tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
 saveRDS(traffic_data_sf, "traffic_data_sf.Rds")
+sf::write_sf(traffic_data_sf, "roads_iow/traffic_data.shp")
 # aim: try to estimate PCU values across IoW, if it works, try for all of UK (big data)
 ```
 
@@ -63,6 +69,11 @@ saveRDS(roads_uk, "roads_uk.Rds")
 piggyback::pb_upload("roads_uk.Rds")
 roads_iow = roads_uk[iow_boundary, ]
 saveRDS(roads_iow, "roads_iow.Rds")
+# create .shp file
+dir.create("roads_iow")
+sf::write_sf(roads_key, "roads_iow/roads_key.shp")
+zip("roads_iow.zip", "roads_iow/")
+piggyback::pb_upload("roads_iow.zip")
 piggyback::pb_upload("roads_iow.Rds")
 nrow(roads_iow)
 mapview::mapview(roads_iow)
