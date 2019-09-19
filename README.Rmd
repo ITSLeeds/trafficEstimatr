@@ -52,15 +52,15 @@ dai = di %>%
 dai %>% arrange(desc(n)) %>% slice(1:9)
 dasf = sf::st_as_sf(dai, coords = c("lon", "lat"), crs = 4326)
 iow_boundary = pct::pct_regions %>% filter(region_name == "isle-of-wight")
-dasf_iow = dasf[iow_boundary, ]
-tm_shape(dasf_iow) + tm_dots(size = "pcu")
-saveRDS(dasf_iow, "dasf_iow.Rds")
+traffic_data_sf = dasf[iow_boundary, ]
+tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
+saveRDS(traffic_data_sf, "traffic_data_sf.Rds")
 # aim: try to estimate PCU values across IoW, if it works, try for all of UK (big data)
 ```
 
 ```{r}
-dasf_iow = readRDS("dasf_iow.Rds")
-tm_shape(dasf_iow) + tm_dots(size = "pcu")
+traffic_data_sf = readRDS("dasf_iow.Rds")
+tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
 ```
 
 ```{r, eval=FALSE}
@@ -106,15 +106,29 @@ fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
 rnet_f <- merge_directed_flows (rnet_f) %>% dodgr_to_sf () # slowest part
-plot (rnet_f$geometry, lwd = 10 * rnet_f$flow / max (rnet_f$flow))
-plot(dasf_iow, add = T)
+summary(rnet_f$flow)
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_scale_bar()
 ```
 
-Goodness of fit.
+The simple betweenness measure of centrality can explain around 10% of the variability in observed PCU counts, as demonstrated below:
 
 ```{r}
-st_join(dasf_iow, rnet_f["flow"], op = sf::st_nearest_points)
-sf::st_nearest_points(rnet_f, dasf_iow)
+traffic_data_buffer = stplanr::geo_projected(traffic_data_sf, st_buffer, dist = 200)
+traffic_estimates = aggregate(rnet_f["flow"], traffic_data_buffer, max) 
+traffic_data_sf$pcu_estimated = traffic_estimates$flow
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 ```
 
 

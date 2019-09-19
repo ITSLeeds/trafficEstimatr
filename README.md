@@ -41,15 +41,15 @@ dai = di %>%
 dai %>% arrange(desc(n)) %>% slice(1:9)
 dasf = sf::st_as_sf(dai, coords = c("lon", "lat"), crs = 4326)
 iow_boundary = pct::pct_regions %>% filter(region_name == "isle-of-wight")
-dasf_iow = dasf[iow_boundary, ]
-tm_shape(dasf_iow) + tm_dots(size = "pcu")
-saveRDS(dasf_iow, "dasf_iow.Rds")
+traffic_data_sf = dasf[iow_boundary, ]
+tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
+saveRDS(traffic_data_sf, "traffic_data_sf.Rds")
 # aim: try to estimate PCU values across IoW, if it works, try for all of UK (big data)
 ```
 
 ``` r
-dasf_iow = readRDS("dasf_iow.Rds")
-tm_shape(dasf_iow) + tm_dots(size = "pcu")
+traffic_data_sf = readRDS("dasf_iow.Rds")
+tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
 #> Linking to GEOS 3.5.1, GDAL 2.1.2, PROJ 4.9.3
 #> Legend for symbol sizes not available in view mode.
 ```
@@ -99,51 +99,52 @@ fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
 rnet_f <- merge_directed_flows (rnet_f) %>% dodgr_to_sf () # slowest part
-plot (rnet_f$geometry, lwd = 10 * rnet_f$flow / max (rnet_f$flow))
-plot(dasf_iow, add = T)
-#> Warning in plot.sf(dasf_iow, add = T): ignoring all but the first attribute
+summary(rnet_f$flow)
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#>       2     904    2726    6240    7730   60240
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_scale_bar()
+#> Legend for symbol sizes not available in view mode.
+#> Legend for line widths not available in view mode.
 ```
 
 ![](README_files/figure-gfm/dodgr-centrality-1.png)<!-- -->
 
-Goodness of fit.
+The simple betweenness measure of centrality can explain around 10% of
+the variability in observed PCU counts, as demonstrated
+below:
 
 ``` r
-st_join(dasf_iow, rnet_f["flow"], op = sf::st_nearest_points)
+traffic_data_buffer = stplanr::geo_projected(traffic_data_sf, st_buffer, dist = 200)
+#> Registered S3 method overwritten by 'R.oo':
+#>   method        from       
+#>   throw.default R.methodsS3
+traffic_estimates = aggregate(rnet_f["flow"], traffic_data_buffer, max) 
 #> although coordinates are longitude/latitude, st_intersects assumes that they are planar
-#> Simple feature collection with 58 features and 5 fields
-#> geometry type:  POINT
-#> dimension:      XY
-#> bbox:           xmin: -1.529917 ymin: 50.58385 xmax: -1.115219 ymax: 50.75773
-#> epsg (SRID):    4326
-#> proj4string:    +proj=longlat +datum=WGS84 +no_defs
-#> # A tibble: 58 x 6
-#> # Groups:   count_point_id, longitude [58]
-#>    count_point_id longitude latitude    pcu             geometry  flow
-#>             <dbl>     <dbl>    <dbl>  <dbl>          <POINT [°]> <dbl>
-#>  1           7566     -1.28     50.8  279.  (-1.277563 50.75236)    NA
-#>  2           7578     -1.30     50.6   87.6 (-1.295116 50.58385)    NA
-#>  3          17546     -1.43     50.7  247.  (-1.434967 50.70071)    NA
-#>  4          17547     -1.22     50.7  487.  (-1.223317 50.65525)    NA
-#>  5          17850     -1.29     50.7 1190.    (-1.293332 50.703)    NA
-#>  6          27619     -1.22     50.6  280.  (-1.223693 50.63241)    NA
-#>  7          27633     -1.17     50.6  327.  (-1.174163 50.63477)    NA
-#>  8          28156     -1.26     50.7  525.  (-1.264597 50.72945)    NA
-#>  9          37656     -1.30     50.8  182.  (-1.298258 50.75249)    NA
-#> 10          38210     -1.16     50.7  458.  (-1.162551 50.73037)    NA
-#> # … with 48 more rows
-sf::st_nearest_points(rnet_f, dasf_iow)
-#> although coordinates are longitude/latitude, st_nearest_points assumes that they are planar
-#> Geometry set for 37874 features 
-#> geometry type:  LINESTRING
-#> dimension:      XY
-#> bbox:           xmin: -1.540631 ymin: 50.57891 xmax: -1.089382 ymax: 50.76237
-#> epsg (SRID):    4326
-#> proj4string:    +proj=longlat +datum=WGS84 +no_defs
-#> First 5 geometries:
-#> LINESTRING (-1.274253 50.74516, -1.277563 50.75...
-#> LINESTRING (-1.274357 50.74499, -1.295116 50.58...
-#> LINESTRING (-1.274357 50.74499, -1.434967 50.70...
-#> LINESTRING (-1.274157 50.74497, -1.223317 50.65...
-#> LINESTRING (-1.274357 50.74499, -1.293332 50.703)
+traffic_data_sf$pcu_estimated = traffic_estimates$flow
+tm_shape(rnet_f) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+#> Legend for symbol sizes not available in view mode.
+#> Legend for line widths not available in view mode.
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+
+``` r
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
+#> [1] 0.08865354
 ```
