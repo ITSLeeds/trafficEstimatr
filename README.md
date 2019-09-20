@@ -56,11 +56,8 @@ sf::write_sf(traffic_data_sf, "roads_iow/traffic_data.shp")
 ``` r
 traffic_data_sf = readRDS("dasf_iow.Rds")
 tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
-#> Linking to GEOS 3.7.1, GDAL 2.4.2, PROJ 5.2.0
+#> Linking to GEOS 3.5.1, GDAL 2.1.2, PROJ 4.9.3
 #> Legend for symbol sizes not available in view mode.
-#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
-#> TypeError: Attempting to change the setter of an unconfigurable property.
-#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
@@ -116,7 +113,7 @@ rnet_directed <- merge_directed_flows (rnet_f)
 rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>       2     904    2758    6247    7838   60240
+#>       2     904    2726    6240    7730   60240
 tm_shape(rnet_f) +
   tm_lines(lwd = "flow", scale = 9) +
   tm_shape(traffic_data_sf) +
@@ -124,9 +121,6 @@ tm_shape(rnet_f) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
-#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
-#> TypeError: Attempting to change the setter of an unconfigurable property.
-#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/dodgr-centrality-1.png)<!-- -->
@@ -152,9 +146,6 @@ tm_shape(rnet_f) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
-#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
-#> TypeError: Attempting to change the setter of an unconfigurable property.
-#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
@@ -167,7 +158,7 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.08817889
+#> [1] 0.08865354
 ```
 
 The fit can be expected to be higher when using the uncontracted graph,
@@ -209,9 +200,6 @@ summary(rnet@sl$flow)
 tm_shape(rnet@sl) +
   tm_lines(lwd = "flow", scale = 9)
 #> Legend for line widths not available in view mode.
-#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
-#> TypeError: Attempting to change the setter of an unconfigurable property.
-#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/stplanr-1.png)<!-- -->
@@ -230,9 +218,6 @@ tm_shape(rnet@sl) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
-#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
-#> TypeError: Attempting to change the setter of an unconfigurable property.
-#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/stplanr-2.png)<!-- -->
