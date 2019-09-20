@@ -56,8 +56,11 @@ sf::write_sf(traffic_data_sf, "roads_iow/traffic_data.shp")
 ``` r
 traffic_data_sf = readRDS("dasf_iow.Rds")
 tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
-#> Linking to GEOS 3.5.1, GDAL 2.1.2, PROJ 4.9.3
+#> Linking to GEOS 3.7.1, GDAL 2.4.2, PROJ 5.2.0
 #> Legend for symbol sizes not available in view mode.
+#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
+#> TypeError: Attempting to change the setter of an unconfigurable property.
+#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
@@ -113,7 +116,7 @@ rnet_directed <- merge_directed_flows (rnet_f)
 rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>       2     904    2726    6240    7730   60240
+#>       2     904    2758    6247    7838   60240
 tm_shape(rnet_f) +
   tm_lines(lwd = "flow", scale = 9) +
   tm_shape(traffic_data_sf) +
@@ -121,6 +124,9 @@ tm_shape(rnet_f) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
+#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
+#> TypeError: Attempting to change the setter of an unconfigurable property.
+#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/dodgr-centrality-1.png)<!-- -->
@@ -146,6 +152,9 @@ tm_shape(rnet_f) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
+#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
+#> TypeError: Attempting to change the setter of an unconfigurable property.
+#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
@@ -158,7 +167,7 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.08865354
+#> [1] 0.08817889
 ```
 
 The fit can be expected to be higher when using the uncontracted graph,
@@ -200,6 +209,9 @@ summary(rnet@sl$flow)
 tm_shape(rnet@sl) +
   tm_lines(lwd = "flow", scale = 9)
 #> Legend for line widths not available in view mode.
+#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
+#> TypeError: Attempting to change the setter of an unconfigurable property.
+#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/stplanr-1.png)<!-- -->
@@ -218,6 +230,9 @@ tm_shape(rnet@sl) +
   tm_scale_bar()
 #> Legend for symbol sizes not available in view mode.
 #> Legend for line widths not available in view mode.
+#> QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-robin'
+#> TypeError: Attempting to change the setter of an unconfigurable property.
+#> TypeError: Attempting to change the setter of an unconfigurable property.
 ```
 
 ![](README_files/figure-gfm/stplanr-2.png)<!-- -->
@@ -232,3 +247,47 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 #> [1] 0.1529621
 ```
+
+## With osrm
+
+These chunks assume a docker container is running.
+
+``` r
+options(osrm.server = "http://0.0.0.0:5000/", osrm.profile = "driving")
+
+l = pct::wight_lines_30 # for testing
+l = pct::get_pct_lines(region = "isle-of-wight", geography = "lsoa")
+plot(l)
+p = line2points(l)
+r = osrm::osrmRoute(src = p[1, ], dst = p[2, ], returnclass = "sf")
+plot(r)
+```
+
+``` r
+route_osrm2 = function(l) {
+  p = line2points(l)
+  s = (1:nrow(l)) * 2 - 1
+  list_out = lapply(s, function(i) osrm::osrmRoute(p[i, ], dst = p[i + 1, ], returnclass = "sf"))
+  do.call(rbind, list_out)
+}
+routes_osrm = route_osrm2(l)
+plot(routes_osrm$geometry)
+names(routes_osrm)
+routes_osrm$pcu = l$car_driver
+rnet_osrm = stplanr::overline2(routes_osrm, "pcu")
+plot(rnet_osrm)
+traffic_estimates = aggregate(rnet_osrm["pcu"], traffic_data_buffer, max) 
+traffic_data_sf$pcu_estimated = traffic_estimates$pcu
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
+#> 0.3930986
+```
+
+![](osrm-rnet.png)

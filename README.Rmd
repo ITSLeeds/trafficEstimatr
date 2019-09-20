@@ -189,3 +189,46 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 ```
 
+## With osrm
+
+These chunks assume a docker container is running.
+
+```{r, eval=FALSE}
+options(osrm.server = "http://0.0.0.0:5000/", osrm.profile = "driving")
+
+l = pct::wight_lines_30 # for testing
+l = pct::get_pct_lines(region = "isle-of-wight", geography = "lsoa")
+plot(l)
+p = line2points(l)
+r = osrm::osrmRoute(src = p[1, ], dst = p[2, ], returnclass = "sf")
+plot(r)
+```
+
+```{r, eval=FALSE}
+route_osrm2 = function(l) {
+  p = line2points(l)
+  s = (1:nrow(l)) * 2 - 1
+  list_out = lapply(s, function(i) osrm::osrmRoute(p[i, ], dst = p[i + 1, ], returnclass = "sf"))
+  do.call(rbind, list_out)
+}
+routes_osrm = route_osrm2(l)
+plot(routes_osrm$geometry)
+names(routes_osrm)
+routes_osrm$pcu = l$car_driver
+rnet_osrm = stplanr::overline2(routes_osrm, "pcu")
+plot(rnet_osrm)
+traffic_estimates = aggregate(rnet_osrm["pcu"], traffic_data_buffer, max) 
+traffic_data_sf$pcu_estimated = traffic_estimates$pcu
+tm_shape(rnet@sl) +
+  tm_lines(lwd = "flow", scale = 9) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu", alpha = 0.2) +
+  tm_shape(traffic_data_sf) +
+  tm_dots(size = "pcu_estimated", col = "blue") +
+  tm_scale_bar()
+plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
+cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
+#> 0.3930986
+```
+
+![](osrm-rnet.png)
