@@ -230,3 +230,7 @@ cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 ```
 
 ![](osrm-rnet.png)
+
+# With opentripplanner
+
+
