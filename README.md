@@ -56,7 +56,7 @@ sf::write_sf(traffic_data_sf, "roads_iow/traffic_data.shp")
 ``` r
 traffic_data_sf = readRDS("dasf_iow.Rds")
 tm_shape(traffic_data_sf) + tm_dots(size = "pcu")
-#> Linking to GEOS 3.5.1, GDAL 2.1.2, PROJ 4.9.3
+#> Linking to GEOS 3.7.1, GDAL 2.4.2, PROJ 5.2.0
 #> Legend for symbol sizes not available in view mode.
 ```
 
@@ -69,6 +69,7 @@ saveRDS(roads_uk, "roads_uk.Rds")
 piggyback::pb_upload("roads_uk.Rds")
 roads_iow = roads_uk[iow_boundary, ]
 saveRDS(roads_iow, "roads_iow.Rds")
+roads_iow = readRDS("roads_iow.Rds")
 # create .shp file
 dir.create("roads_iow")
 sf::write_sf(roads_key, "roads_iow/roads_key.shp")
@@ -77,8 +78,9 @@ piggyback::pb_upload("roads_iow.zip")
 piggyback::pb_upload("roads_iow.Rds")
 nrow(roads_iow)
 mapview::mapview(roads_iow)
-key_roads_text = "primary|secondary|tertiary|cycleway|trunk"
+key_roads_text = "resi|minor|primary|secondary|tertiary|cycleway|trunk"
 roads_key = roads_iow[grepl(pattern = key_roads_text, x = roads_iow$fclass), ]
+table(roads_key$fclass)
 saveRDS(roads_key, "roads_key.Rds")
 mapview::mapview(roads_key)
 ```
@@ -113,17 +115,8 @@ rnet_directed <- merge_directed_flows (rnet_f)
 rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>       2     904    2726    6240    7730   60240
-tm_shape(rnet_f) +
-  tm_lines(lwd = "flow", scale = 9) +
-  tm_shape(traffic_data_sf) +
-  tm_dots(size = "pcu", alpha = 0.2) +
-  tm_scale_bar()
-#> Legend for symbol sizes not available in view mode.
-#> Legend for line widths not available in view mode.
+#>       2    7758   23262  166855   98461 5294558
 ```
-
-![](README_files/figure-gfm/dodgr-centrality-1.png)<!-- -->
 
 The simple betweenness measure of centrality can explain around 10% of
 the variability in observed PCU counts, as demonstrated
@@ -158,7 +151,7 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.08865354
+#> [1] 0.1160001
 ```
 
 The fit can be expected to be higher when using the uncontracted graph,
@@ -195,8 +188,8 @@ library(stplanr)
 rnet = SpatialLinesNetwork(roads_key)
 rnet@sl$flow = igraph::edge_betweenness(rnet@g)
 summary(rnet@sl$flow)
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>       0    2488   11521   28041   35293  250933
+#>     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+#>      0.0      1.0    152.5  23657.4  14215.8 527746.0
 tm_shape(rnet@sl) +
   tm_lines(lwd = "flow", scale = 9)
 #> Legend for line widths not available in view mode.
@@ -230,7 +223,7 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.1529621
+#> [1] 0.2006334
 ```
 
 ## With osrm
@@ -255,7 +248,8 @@ route_osrm2 = function(l) {
   list_out = lapply(s, function(i) osrm::osrmRoute(p[i, ], dst = p[i + 1, ], returnclass = "sf"))
   do.call(rbind, list_out)
 }
-routes_osrm = route_osrm2(l)
+st = system.time({routes_osrm = route_osrm2(l)})
+st[3] / nrow(l) * 1000
 plot(routes_osrm$geometry)
 names(routes_osrm)
 routes_osrm$pcu = l$car_driver
