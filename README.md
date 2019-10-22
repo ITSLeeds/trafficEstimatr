@@ -111,11 +111,11 @@ v <- dodgr_vertices (rnet_contracted) # 500 vertices
 fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
-rnet_directed <- merge_directed_flows (rnet_f)
+rnet_directed <- merge_directed_graph(rnet_f)
 rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>       2    7758   23262  166855   98461 5294558
+#>       2    7758   23262  166748   98209 5294419
 ```
 
 The simple betweenness measure of centrality can explain around 10% of
@@ -124,9 +124,6 @@ below:
 
 ``` r
 traffic_data_buffer = stplanr::geo_projected(traffic_data_sf, st_buffer, dist = 200)
-#> Registered S3 method overwritten by 'R.oo':
-#>   method        from       
-#>   throw.default R.methodsS3
 traffic_estimates = aggregate(rnet_f["flow"], traffic_data_buffer, max) 
 #> although coordinates are longitude/latitude, st_intersects assumes that they are planar
 traffic_data_sf$pcu_estimated = traffic_estimates$flow
@@ -151,7 +148,7 @@ plot(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated)
 
 ``` r
 cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
-#> [1] 0.1160001
+#> [1] 0.1159377
 ```
 
 The fit can be expected to be higher when using the uncontracted graph,
@@ -159,26 +156,24 @@ as shown
 below:
 
 ``` r
-# rnet = dodgr::dodgr_uncontract_graph(graph = rnet_directed) # fails with:
-# Error in dodgr::dodgr_uncontract_graph(graph = rnet_directed) : 
-#   Unable to uncontract this graph because the rows have been changed
+system.time({rnet_dodgr_centraility_contracted = dodgr_centrality(rnet_dodgr, contract = FALSE)})
+#>    user  system elapsed 
+#> 134.373   0.375  23.748
 ```
 
 ``` r
 # currently fails
-v <- dodgr_vertices (rnet_dodgr) %>% 
-  sample_n(100)
-fmat <- array (1, dim = rep (nrow (v), 2))
-rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
-                                 flows = fmat)
-rnet_directed <- merge_directed_flows (rnet_f)
-rnet_f = dodgr_to_sf(rnet_directed)
-summary(rnet_f$flow)
-tm_shape(rnet_f) +
-  tm_lines(lwd = "flow", scale = 9) +
-  tm_shape(traffic_data_sf) +
-  tm_dots(size = "pcu", alpha = 0.2) +
-  tm_scale_bar()
+rnet_f = dodgr_to_sf(rnet_dodgr_centraility_contracted)
+names(rnet_f)
+#>  [1] "geom_num"      "edge_id"       "from_id"       "from_lon"     
+#>  [5] "from_lat"      "to_id"         "to_lon"        "to_lat"       
+#>  [9] "d"             "d_weighted"    "highway"       "way_id"       
+#> [13] "time"          "time_weighted" "component"     "geometry"
+# tm_shape(rnet_f) +
+#   tm_lines(lwd = "flow", scale = 9) +
+#   tm_shape(traffic_data_sf) +
+#   tm_dots(size = "pcu", alpha = 0.2) +
+#   tm_scale_bar()
 ```
 
 ## With stplanr
@@ -186,7 +181,11 @@ tm_shape(rnet_f) +
 ``` r
 library(stplanr)
 rnet = SpatialLinesNetwork(roads_key)
-rnet@sl$flow = igraph::edge_betweenness(rnet@g)
+#> Warning in SpatialLinesNetwork.sf(roads_key): Graph composed of multiple
+#> subgraphs, consider cleaning it with sln_clean_graph().
+system.time({rnet@sl$flow = igraph::edge_betweenness(rnet@g)})
+#>    user  system elapsed 
+#>   0.540   0.000   0.541
 summary(rnet@sl$flow)
 #>     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
 #>      0.0      1.0    152.5  23657.4  14215.8 527746.0
@@ -270,3 +269,5 @@ cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 ```
 
 ![](osrm-rnet.png)
+
+# With opentripplanner

@@ -115,7 +115,7 @@ v <- dodgr_vertices (rnet_contracted) # 500 vertices
 fmat <- array (1, dim = rep (nrow (v), 2))
 rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
                                  flows = fmat)
-rnet_directed <- merge_directed_flows (rnet_f)
+rnet_directed <- merge_directed_graph(rnet_f)
 rnet_f = dodgr_to_sf(rnet_directed)
 summary(rnet_f$flow)
 ```
@@ -140,26 +140,18 @@ cor(traffic_data_sf$pcu, traffic_data_sf$pcu_estimated, use = "complete.obs")^2
 The fit can be expected to be higher when using the uncontracted graph, as shown below:
 
 ```{r uncontract}
-# rnet = dodgr::dodgr_uncontract_graph(graph = rnet_directed) # fails with:
-# Error in dodgr::dodgr_uncontract_graph(graph = rnet_directed) : 
-#   Unable to uncontract this graph because the rows have been changed
+system.time({rnet_dodgr_centraility_contracted = dodgr_centrality(rnet_dodgr, contract = FALSE)})
 ```
 
-```{r uncontracted, eval=FALSE}
+```{r uncontracted}
 # currently fails
-v <- dodgr_vertices (rnet_dodgr) %>% 
-  sample_n(100)
-fmat <- array (1, dim = rep (nrow (v), 2))
-rnet_f <- dodgr_flows_aggregate (rnet_contracted, from = v$id, to = v$id,
-                                 flows = fmat)
-rnet_directed <- merge_directed_flows (rnet_f)
-rnet_f = dodgr_to_sf(rnet_directed)
-summary(rnet_f$flow)
-tm_shape(rnet_f) +
-  tm_lines(lwd = "flow", scale = 9) +
-  tm_shape(traffic_data_sf) +
-  tm_dots(size = "pcu", alpha = 0.2) +
-  tm_scale_bar()
+rnet_f = dodgr_to_sf(rnet_dodgr_centraility_contracted)
+names(rnet_f)
+# tm_shape(rnet_f) +
+#   tm_lines(lwd = "flow", scale = 9) +
+#   tm_shape(traffic_data_sf) +
+#   tm_dots(size = "pcu", alpha = 0.2) +
+#   tm_scale_bar()
 
 ```
 
@@ -168,7 +160,7 @@ tm_shape(rnet_f) +
 ```{r stplanr}
 library(stplanr)
 rnet = SpatialLinesNetwork(roads_key)
-rnet@sl$flow = igraph::edge_betweenness(rnet@g)
+system.time({rnet@sl$flow = igraph::edge_betweenness(rnet@g)})
 summary(rnet@sl$flow)
 tm_shape(rnet@sl) +
   tm_lines(lwd = "flow", scale = 9)
